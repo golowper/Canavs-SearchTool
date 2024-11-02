@@ -12,6 +12,10 @@ from webdriver_manager.chrome import ChromeDriverManager
 options = webdriver.ChromeOptions()
 # options.add_argument('--headless')  # 不显示浏览器窗口
 options.add_argument('--disable-gpu')
+# no pictures
+prefs = {"profile.managed_default_content_settings.images": 2}
+options.add_experimental_option("prefs", prefs)
+
 # options.add_argument('--no-sandbox')
 
 
@@ -43,10 +47,16 @@ class Crawler:
             self.visited.add(url)
 
             links = driver.find_elements(By.TAG_NAME, 'a')
+
+            # filter the links that are in https://canvas.sydney.edu.au/
+            print(links)
+            links = [link for link in links if link.get_attribute('href').startswith('https://canvas.sydney.edu.au/')]
+
             for link in links:
                 href = link.get_attribute('href')
                 if href and href.startswith('http') and href not in self.visited:
                     self.deep_crawl(href, depth - 1)
+
 
         except Exception as e:
             print(f"Error occurred: {e}")
