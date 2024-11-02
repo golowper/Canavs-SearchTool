@@ -1,0 +1,15 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+}
+#search {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 20px;
+}
+.highlight {
+    background-color: yellow;
+}
+.content {
+    white-space: pre-wrap; /* 保持原有格式 */
+}
