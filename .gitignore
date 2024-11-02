@@ -170,3 +170,5 @@ cookies.*
 .DS_Store
 
 test.*
+
+web-cache/
