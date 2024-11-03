@@ -172,3 +172,5 @@ cookies.*
 test.*
 
 web-cache/
+
+access-token
