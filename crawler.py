@@ -44,8 +44,8 @@ class Crawler:
     def find_links(self):
         # Get the page source
         page_source = driver.page_source
-        with open("test.html", "w") as f:
-            f.write(page_source)
+        # with open("test.html", "w") as f:
+        #     f.write(page_source)
 
         # Parse the page source with BeautifulSoup
         soup = BeautifulSoup(page_source, 'html.parser')
@@ -75,6 +75,11 @@ class Crawler:
         # if filename start with BUS or HUM skip
         if filename.startswith("BUS") or filename.startswith("HUM"):
             return
+
+        # check if the web-cache dir already exists
+        if not os.path.exists("web-cache"):
+            os.mkdir("web-cache")
+
         with open(f"web-cache/{filename}.html", "w", encoding="utf-8") as f:
             f.write(driver.page_source)
 
