@@ -173,4 +173,5 @@ test.*
 
 web-cache/
 
-access-token
+access-token.json
+access-token.*
