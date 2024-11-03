@@ -3,26 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Convas Keyword Search</title>
+    <title>Canvas Keyword Search</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <h1>Convas Keyword Search</h1>
+    <h1>Canvas Keyword Search</h1>
     <form method="POST" id="searchForm">
         <input type="text" name="keyword" placeholder="Enter keyword to search" value="{{ keyword }}">
-        <!-- 不再需要显式的搜索按钮 -->
+        <button type="submit">Search</button>
     </form>
 
     {% if results %}
         <h2>Search Results</h2>
         {% for result in results %}
-            <div class="result">
+            <div class="result-container">
                 <h3>{{ result.title|safe }}</h3>
-                <div>{{ result.content|safe }}</div>
+                <div class="content">{{ result.content|safe }}</div>
             </div>
         {% endfor %}
     {% elif keyword %}
         <p>No results found for "{{ keyword }}".</p>
     {% endif %}
+
 </body>
 </html>
