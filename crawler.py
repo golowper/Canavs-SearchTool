@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import sys
 import time
 
@@ -14,12 +15,14 @@ from bs4 import BeautifulSoup
 options = webdriver.ChromeOptions()
 # options.add_argument('--headless')  # 不显示浏览器窗口
 options.add_argument('--disable-gpu')
+# enable javascript
+options.add_argument('--enable-javascript')
 # no download no pictures and videos
 prefs = {
     "download.default_directory": "/dev/null",
     "download.prompt_for_download": False,
     "download.directory_upgrade": True,
-    "safebrowsing.enabled": True,
+    # "safebrowsing.enabled": True,
     "profile.managed_default_content_settings.images": 2,
     "profile.managed_default_content_settings.videos": 2
 }
@@ -53,10 +56,12 @@ class Crawler:
         # Find all <a> elements that are not descendants of a <header> with id 'header'
         links = [a for a in soup.find_all('a', href=True) if not a.find_parent('header', id='header')]
 
+        # Filter out links that are part of the course or group and not download links
         filtered_links = []
         for link in links:
             href = link.get('href')
-            if href and (href.startswith(self.course_url) or href.startswith(self.group_url)) and "#" not in href and href not in self.visited:
+            pattern = r"/download\?.*$" # download links
+            if href and (href.startswith(self.course_url) or href.startswith(self.group_url)) and "#" not in href and href not in self.visited and not re.search(pattern, href):
                 filtered_links.append(link)
                 # print(link.get('href'))
 
@@ -100,24 +105,22 @@ class Crawler:
         #     return
 
     def login(self):
-        try:
-            driver.get("https://canvas.sydney.edu.au/")
-            # 读取 cookies
-            if os.path.exists("cookies.json"):
-                with open("cookies.json", "r") as file:
-                    cookies = json.load(file)
-                    for cookie in cookies:
-                        cookie['domain'] = '.sydney.edu.au'
-                        driver.add_cookie(cookie)
-            # 等待页面加载完成
-            WebDriverWait(driver, 10).until(
-                lambda d: d.execute_script("return document.readyState") == "complete"
-            )
-            print("Page is fully loaded!")
-        except Exception as e:
-            print(f"Error occurred: {e}")
+        # check if cookies.json exists
+        driver.get("https://canvas.sydney.edu.au/")
+        # 读取 cookies
+        if os.path.exists("cookies.json"):
+            with open("cookies.json", "r") as file:
+                cookies = json.load(file)
+                for cookie in cookies:
+                    cookie['domain'] = '.sydney.edu.au'
+                    driver.add_cookie(cookie)
+        # 等待页面加载完成
+        WebDriverWait(driver, 10).until(
+            lambda d: d.execute_script("return document.readyState") == "complete"
+        )
+        print("Page is fully loaded!")
 
-        # 检测是否有可以登陆 如果访问start_url没有跳转就是已经登录 跳转了就是未登录
+        # Check if already logged in. If accessing start_url does not redirect, already logged in; otherwise, not logged in
         driver.get(self.start_url)
         driver.get(self.start_url)
         WebDriverWait(driver, 10).until(
@@ -128,6 +131,7 @@ class Crawler:
             return
 
         # 否则登录
+        driver.delete_all_cookies()# clear cookies
         driver.get("https://canvas.sydney.edu.au/")
         input("Login First, Press Enter to continue...")
         # 保存登录后的 cookies
@@ -145,7 +149,7 @@ def main():
     course_url = "https://canvas.sydney.edu.au/courses/61585"
     group_url = "https://canvas.sydney.edu.au/groups/624156/pages"
     start_url = "https://canvas.sydney.edu.au/groups/624156/pages"
-    depth_limit = 99 # 设置最大深度
+    depth_limit = 30 # 设置最大深度
     crawler = Crawler(start_url, course_url, group_url, depth_limit)
     crawler.start()
     input("Press Enter to close the browser...")
