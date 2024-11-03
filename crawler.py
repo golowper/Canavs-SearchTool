@@ -15,12 +15,14 @@ from bs4 import BeautifulSoup
 options = webdriver.ChromeOptions()
 # options.add_argument('--headless')  # 不显示浏览器窗口
 options.add_argument('--disable-gpu')
+# enable javascript
+options.add_argument('--enable-javascript')
 # no download no pictures and videos
 prefs = {
-    "download.default_directory": "/dev/null",  # 下载路由重定位
+    "download.default_directory": "/dev/null",	# 下载路由重定位
     "download.prompt_for_download": False,
     "download.directory_upgrade": True,
-    "safebrowsing.enabled": True,
+    # "safebrowsing.enabled": True,
     "profile.managed_default_content_settings.images": 2,
     "profile.managed_default_content_settings.videos": 2
 }
@@ -51,16 +53,26 @@ class Crawler:
         # Parse the page source with BeautifulSoup 解析页面
         soup = BeautifulSoup(page_source, 'html.parser')
 
-        # Find all <a> elements that are not descendants of a <header> with id 'header'
-        links = [a for a in soup.find_all('a', href=True) if not a.find_parent('header', id='header')]
+        # Find all <a> elements that are not descendants of a <header> with id 'header' and do not contain 'quiz' or 'assignment' in their href
+        links = [
+            a for a in soup.find_all('a', href=True)
+            if (
+                    'quiz' not in a['href'].lower() and
+                    'assignment' not in a['href'].lower() and
+                    not a.find_parent('header', id='header')
+            )
+        ]
 
         # 定义过滤：指向文件下载的url路径
         # https://canvas.sydney.edu.au/courses/61586/files/38644943/download?wrap=1
-        file_extensions = (".pdf", ".zip", ".docx", ".xlsx", ".pptx", ".jpg", ".png", ".mp4")   # 增加限制 防止漏判
-        download_indicator = "/download"
+        # file_extensions = (".pdf", ".zip", ".docx", ".xlsx", ".pptx", ".jpg", ".png", ".mp4")   # 增加限制 防止漏判
+        # download_indicator = "/download"
+
+        # Filter out links that are part of the course or group and not download links
 
         filtered_links = []
-        for link in links:
+        """
+         for link in links:
             href = link.get('href')
 
             # 增加：指向下载文件检查【未检验增加file_extensions是否能完全过滤】
@@ -73,6 +85,14 @@ class Crawler:
                     and (href.startswith(self.course_url) or href.startswith(self.group_url)) \
                     and "#" not in href \
                     and href not in self.visited:
+                filtered_links.append(link)
+                # print(link.get('href'))
+        """
+        for link in links:
+            href = link.get('href')
+            pattern = r"/download\?.*$"  # download links
+            if href and (href.startswith(self.course_url) or href.startswith(
+                    self.group_url)) and "#" not in href and href not in self.visited and not re.search(pattern, href):
                 filtered_links.append(link)
                 # print(link.get('href'))
 
@@ -95,9 +115,23 @@ class Crawler:
         # if filename start with BUS or HUM skip
         if filename.startswith("BUS") or filename.startswith("HUM"):
             return
+
+        # check if the web-cache dir already exists
+        if not os.path.exists("web-cache"):
+            os.mkdir("web-cache")
+
         with open(f"web-cache/{filename}.html", "w", encoding="utf-8") as f:
             f.write(driver.page_source)
 
+        # save the [filename,url] into web-cache.csv
+        if not os.path.exists("./web-cache/web-cache.csv"):
+            with open('./web-cache/web-cache.csv', 'w') as f:
+                f.write("filename\turl\n")
+        with open("./web-cache/web-cache.csv", "r+", encoding="utf-8") as f:
+            line = "\t".join([filename, url])
+            lines = f.readlines()
+            if line not in lines:
+                f.write(line + "\n")
 
         print(f"Depth {depth}: {driver.title} - {url}")
 
@@ -109,29 +143,24 @@ class Crawler:
             href = link.get('href')
             self.deep_crawl(href, depth - 1)
 
-        # except Exception as e:
-        #     print(f"Error occurred at Link: {url} , Error: {e}", file=sys.stderr)
-        #     return
 
     def login(self):
-        try:
-            driver.get("https://canvas.sydney.edu.au/")
-            # 读取 cookies
-            if os.path.exists("cookies.json"):
-                with open("cookies.json", "r") as file:
-                    cookies = json.load(file)
-                    for cookie in cookies:
-                        cookie['domain'] = '.sydney.edu.au'
-                        driver.add_cookie(cookie)
-            # 等待页面加载完成
-            WebDriverWait(driver, 10).until(
-                lambda d: d.execute_script("return document.readyState") == "complete"
-            )
-            print("Page is fully loaded!")
-        except Exception as e:
-            print(f"Error occurred: {e}")
+        # check if cookies.json exists
+        driver.get("https://canvas.sydney.edu.au/")
+        # 读取 cookies
+        if os.path.exists("cookies.json"):
+            with open("cookies.json", "r") as file:
+                cookies = json.load(file)
+                for cookie in cookies:
+                    cookie['domain'] = '.sydney.edu.au'
+                    driver.add_cookie(cookie)
+        # 等待页面加载完成
+        WebDriverWait(driver, 10).until(
+            lambda d: d.execute_script("return document.readyState") == "complete"
+        )
+        print("Page is fully loaded!")
 
-        # 检测是否有可以登陆 如果访问start_url没有跳转就是已经登录 跳转了就是未登录
+        # Check if already logged in. If accessing start_url does not redirect, already logged in; otherwise, not logged in
         driver.get(self.start_url)
         driver.get(self.start_url)
         WebDriverWait(driver, 10).until(
@@ -142,10 +171,12 @@ class Crawler:
             return
 
         # 否则登录
+        driver.delete_all_cookies()# clear cookies
         driver.get("https://canvas.sydney.edu.au/")
         input("Login First, Press Enter to continue...")
+
         # 保存登录后的 cookies
-        with open("cookies.json", "w", encoding="utf-8") as f:
+        with open("cookies.json", "w") as f:
             cookies = driver.get_cookies()
             json.dump(cookies, f)
 
@@ -157,17 +188,48 @@ class Crawler:
 
 def main():
     """
-        原始的
+        - SInfo -
+        # main branch Debug
         course_url = "https://canvas.sydney.edu.au/courses/61585"
         group_url = "https://canvas.sydney.edu.au/groups/624156/pages"
         start_url = "https://canvas.sydney.edu.au/groups/624156/pages"
 
-        # 未来优化： 改成可输入&验证的
+        # win branch Debug
+        course_url = "https://canvas.sydney.edu.au/courses/61586"
+        group_url = "https://canvas.sydney.edu.au/groups/611676/pages"
+        start_url = "https://canvas.sydney.edu.au/groups/611676/pages"
+
     """
-    # 换
-    course_url = "https://canvas.sydney.edu.au/courses/61586"
-    group_url = "https://canvas.sydney.edu.au/groups/611676/pages"
-    start_url = "https://canvas.sydney.edu.au/groups/611676/pages"
+    # 优化： 改成可输入&验证的url
+
+    # 定义 URL 模式
+    url_patterns = {
+        "course_url": r"^https://canvas\.sydney\.edu\.au/courses/\d+$",
+        "group_url": r"^https://canvas\.sydney\.edu\.au/groups/\d+/pages$",
+        "start_url": r"^https://canvas\.sydney\.edu\.au/groups/\d+/pages$"
+    }
+
+    # 验证 URL 是否符合格式
+    def is_valid_url(url, pattern):
+        return re.match(pattern, url) is not None
+
+    # 获取用户输入并验证
+    urls = {}
+    for url_name, pattern in url_patterns.items():
+        url = input(f"请输入 {url_name}: ").strip()
+        if not is_valid_url(url, pattern):
+            print(f"{url_name} 不符合要求的格式！")
+            exit(1)
+        urls[url_name] = url
+
+    # 提取验证后的 URLs
+    course_url = urls["course_url"]
+    group_url = urls["group_url"]
+    start_url = urls["start_url"]
+
+    # 确认输入无误后继续执行爬虫逻辑
+    print("所有 URL 验证通过，开始爬虫...")
+
 
     depth_limit = 99 # 设置最大深度
     crawler = Crawler(start_url, course_url, group_url, depth_limit)
