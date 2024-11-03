@@ -1,10 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>$Title$</title>
+    <meta charset="UTF-8">
+    <title>内容查看</title>
+    <style>
+        .highlight {
+            background-color: yellow;
+        }
+    </style>
 </head>
 <body>
-$END$
+    {{ content | safe }}
 </body>
 </html>

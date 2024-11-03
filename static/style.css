@@ -1,15 +1,64 @@
-body {
-    font-family: Arial, sans-serif;
-    margin: 20px;
-}
-#search {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 20px;
-}
+/* 高亮关键词 */
 .highlight {
     background-color: yellow;
+    font-weight: bold;
 }
-.content {
-    white-space: pre-wrap; /* 保持原有格式 */
+
+/* 搜索结果样式 */
+.result {
+    border: 1px solid #ddd;
+    padding: 10px;
+    margin: 10px 0;
+}
+
+/* 设置搜索结果的整体样式 */
+.result-container {
+    border: 1px solid #ddd;
+    padding: 15px;
+    margin: 10px 0;
+}
+
+/* 加粗标题 */
+.result-container h3 {
+    font-weight: bold;
+    font-size: 18px; /* 标题大小 */
+    margin-bottom: 10px;
+}
+
+/* 统一内容字体大小 */
+.result-container .content {
+    font-size: 16px; /* 统一内容大小 */
+    line-height: 1.5; /* 行距，让内容更易读 */
+}
+
+/* 隐藏搜索结果中的图片 */
+.result img {
+    display: none;
+}
+
+/* 搜索框样式 */
+input[name="keyword"] {
+    width: 600px;         /* 搜索框宽度 */
+    height: 40px;         /* 搜索框高度 */
+    font-size: 16px;      /* 字体大小 */
+    padding: 5px 10px;    /* 内边距 */
+    border-radius: 5px;   /* 圆角边框 */
+    border: 1px solid #ccc; /* 边框样式 */
+}
+
+/* 按钮样式 */
+button {
+    height: 40px;                /* 按钮高度 */
+    font-size: 16px;             /* 按钮字体大小 */
+    padding: 5px 15px;           /* 按钮内边距 */
+    border-radius: 5px;          /* 按钮圆角 */
+    border: 1px solid #ccc;      /* 按钮边框 */
+    background-color: #007bff;   /* 按钮背景颜色 */
+    color: white;                /* 按钮文字颜色 */
+    cursor: pointer;             /* 鼠标悬停样式 */
+}
+
+/* 按钮悬停样式 */
+button:hover {
+    background-color: #0056b3;
 }
