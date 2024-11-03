@@ -53,8 +53,15 @@ class Crawler:
         # Parse the page source with BeautifulSoup
         soup = BeautifulSoup(page_source, 'html.parser')
 
-        # Find all <a> elements that are not descendants of a <header> with id 'header'
-        links = [a for a in soup.find_all('a', href=True) if not a.find_parent('header', id='header')]
+        # Find all <a> elements that are not descendants of a <header> with id 'header' and do not contain 'quiz' or 'assignment' in their href
+        links = [
+            a for a in soup.find_all('a', href=True)
+            if (
+                    'quiz' not in a['href'].lower() and
+                    'assignment' not in a['href'].lower() and
+                    not a.find_parent('header', id='header')
+            )
+        ]
 
         # Filter out links that are part of the course or group and not download links
         filtered_links = []
@@ -63,7 +70,6 @@ class Crawler:
             pattern = r"/download\?.*$" # download links
             if href and (href.startswith(self.course_url) or href.startswith(self.group_url)) and "#" not in href and href not in self.visited and not re.search(pattern, href):
                 filtered_links.append(link)
-                # print(link.get('href'))
 
         return filtered_links
 
@@ -88,6 +94,15 @@ class Crawler:
         with open(f"web-cache/{filename}.html", "w", encoding="utf-8") as f:
             f.write(driver.page_source)
 
+        # save the [filename,url] into web-cache.csv
+        if not os.path.exists("./web-cache/web-cache.csv"):
+            with open('./web-cache/web-cache.csv', 'w') as f:
+                f.write("filename\turl\n")
+        with open("./web-cache/web-cache.csv", "r+", encoding="utf-8") as f:
+            line = "\t".join([filename, url])
+            lines = f.readlines()
+            if line not in lines:
+                f.write(line + "\n")
 
         print(f"Depth {depth}: {driver.title} - {url}")
 
@@ -100,9 +115,6 @@ class Crawler:
             self.deep_crawl(href, depth - 1)
 
 
-        # except Exception as e:
-        #     print(f"Error occurred at Link: {url} , Error: {e}", file=sys.stderr)
-        #     return
 
     def login(self):
         # check if cookies.json exists
@@ -134,6 +146,7 @@ class Crawler:
         driver.delete_all_cookies()# clear cookies
         driver.get("https://canvas.sydney.edu.au/")
         input("Login First, Press Enter to continue...")
+
         # 保存登录后的 cookies
         with open("cookies.json", "w") as f:
             cookies = driver.get_cookies()
@@ -149,7 +162,7 @@ def main():
     course_url = "https://canvas.sydney.edu.au/courses/61585"
     group_url = "https://canvas.sydney.edu.au/groups/624156/pages"
     start_url = "https://canvas.sydney.edu.au/groups/624156/pages"
-    depth_limit = 30 # 设置最大深度
+    depth_limit = 99 # 设置最大深度
     crawler = Crawler(start_url, course_url, group_url, depth_limit)
     crawler.start()
     input("Press Enter to close the browser...")
