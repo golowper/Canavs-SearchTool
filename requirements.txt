@@ -1,4 +1,4 @@
-beautifulsoup4==4.12.3
-Flask==3.0.3
-selenium==4.26.1
+beautifulsoup4==4.*
+Flask==3.0.*
+selenium==4.26.*
 webdriver_manager==4.0.2
