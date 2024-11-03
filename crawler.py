@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import time
+import re
 
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
@@ -16,7 +17,7 @@ options = webdriver.ChromeOptions()
 options.add_argument('--disable-gpu')
 # no download no pictures and videos
 prefs = {
-    "download.default_directory": "/dev/null",
+    "download.default_directory": "/dev/null",  # 下载路由重定位
     "download.prompt_for_download": False,
     "download.directory_upgrade": True,
     "safebrowsing.enabled": True,
@@ -44,19 +45,34 @@ class Crawler:
     def find_links(self):
         # Get the page source
         page_source = driver.page_source
-        with open("test.html", "w") as f:
+        with open("test.html", "w", encoding="utf-8") as f:
             f.write(page_source)
 
-        # Parse the page source with BeautifulSoup
+        # Parse the page source with BeautifulSoup 解析页面
         soup = BeautifulSoup(page_source, 'html.parser')
 
         # Find all <a> elements that are not descendants of a <header> with id 'header'
         links = [a for a in soup.find_all('a', href=True) if not a.find_parent('header', id='header')]
 
+        # 定义过滤：指向文件下载的url路径
+        # https://canvas.sydney.edu.au/courses/61586/files/38644943/download?wrap=1
+        file_extensions = (".pdf", ".zip", ".docx", ".xlsx", ".pptx", ".jpg", ".png", ".mp4")   # 增加限制 防止漏判
+        download_indicator = "/download"
+
         filtered_links = []
         for link in links:
             href = link.get('href')
-            if href and (href.startswith(self.course_url) or href.startswith(self.group_url)) and "#" not in href and href not in self.visited:
+
+            # 增加：指向下载文件检查【未检验增加file_extensions是否能完全过滤】
+            if href.lower().endswith(file_extensions) or \
+                    href and download_indicator in href:
+                continue
+
+            # 通过过滤的其他链接
+            if href \
+                    and (href.startswith(self.course_url) or href.startswith(self.group_url)) \
+                    and "#" not in href \
+                    and href not in self.visited:
                 filtered_links.append(link)
                 # print(link.get('href'))
 
@@ -71,7 +87,11 @@ class Crawler:
         # wait for the page to load
         time.sleep(1)
         # save page source into web-cache dir, named by the title of the page
-        filename = driver.title.replace('/', '_')
+        #filename = driver.title.replace('/', '_')
+
+        # 增加更多非法字符的替换
+        filename = re.sub(r'[<>:"/\\|?*]', '_', driver.title)
+
         # if filename start with BUS or HUM skip
         if filename.startswith("BUS") or filename.startswith("HUM"):
             return
@@ -88,7 +108,6 @@ class Crawler:
         for link in links:
             href = link.get('href')
             self.deep_crawl(href, depth - 1)
-
 
         # except Exception as e:
         #     print(f"Error occurred at Link: {url} , Error: {e}", file=sys.stderr)
@@ -126,7 +145,7 @@ class Crawler:
         driver.get("https://canvas.sydney.edu.au/")
         input("Login First, Press Enter to continue...")
         # 保存登录后的 cookies
-        with open("cookies.json", "w") as f:
+        with open("cookies.json", "w", encoding="utf-8") as f:
             cookies = driver.get_cookies()
             json.dump(cookies, f)
 
@@ -137,9 +156,19 @@ class Crawler:
 
 
 def main():
-    course_url = "https://canvas.sydney.edu.au/courses/61585"
-    group_url = "https://canvas.sydney.edu.au/groups/624156/pages"
-    start_url = "https://canvas.sydney.edu.au/groups/624156/pages"
+    """
+        原始的
+        course_url = "https://canvas.sydney.edu.au/courses/61585"
+        group_url = "https://canvas.sydney.edu.au/groups/624156/pages"
+        start_url = "https://canvas.sydney.edu.au/groups/624156/pages"
+
+        # 未来优化： 改成可输入&验证的
+    """
+    # 换
+    course_url = "https://canvas.sydney.edu.au/courses/61586"
+    group_url = "https://canvas.sydney.edu.au/groups/611676/pages"
+    start_url = "https://canvas.sydney.edu.au/groups/611676/pages"
+
     depth_limit = 99 # 设置最大深度
     crawler = Crawler(start_url, course_url, group_url, depth_limit)
     crawler.start()
