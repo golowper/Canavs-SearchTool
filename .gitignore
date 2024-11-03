@@ -171,4 +171,4 @@ cookies.*
 
 test.*
 
-web-cache/
+web-cache/*
