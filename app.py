@@ -4,6 +4,7 @@ import re
 
 app = Flask(__name__)
 
+folder_path = 'web-cache'
 
 # 获取 web-cache 文件夹中的 HTML 文件列表及其内容
 def get_html_files(folder_path, keyword=None):
@@ -56,20 +57,30 @@ def index():
 # API 路由：获取 web-cache 文件夹中的 HTML 文件列表
 @app.route('/file-list', methods=['GET'])
 def get_file_list():
-    folder_path = 'web-cache'
+    folder_path = 'web-cache'  # 确保 web-cache 文件夹在项目根目录下
 
+    # 检查文件夹是否存在
     if not os.path.exists(folder_path):
         error_message = f"Error: The directory '{folder_path}' does not exist."
         print(error_message)  # 控制台报错
         return jsonify({"error": error_message}), 500
 
     try:
-        # 获取文件夹中的所有 HTML 文件
-        files = [f for f in os.listdir(folder_path) if f.endswith('.html')]
-        return jsonify(files)  # 返回 JSON 格式的文件列表
+        # 获取 HTML 文件列表
+        html_files = get_html_files(folder_path)
+        return jsonify(html_files)  # 返回 JSON 格式的文件列表
+
+    except PermissionError as e:
+        # 捕获权限错误并输出到控制台
+        error_message = f"Permission Error: {e}"
+        print(error_message)
+        return jsonify({"error": error_message}), 500
+
     except Exception as e:
-        print(f"Unexpected error: {e}")  # 控制台打印错误信息
-        return jsonify({"error": str(e)}), 500
+        # 捕获其他异常并输出到控制台
+        error_message = f"Unexpected error: {e}"
+        print(error_message)
+        return jsonify({"error": error_message}), 500
 
 
 if __name__ == '__main__':
