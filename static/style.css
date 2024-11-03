@@ -1,15 +1,37 @@
-body {
-    font-family: Arial, sans-serif;
-    margin: 20px;
-}
-#search {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 20px;
-}
+/* 高亮关键词 */
 .highlight {
     background-color: yellow;
+    font-weight: bold;
 }
-.content {
-    white-space: pre-wrap; /* 保持原有格式 */
+
+/* 搜索结果样式 */
+.result {
+    border: 1px solid #ddd;
+    padding: 10px;
+    margin: 10px 0;
+}
+
+/* 搜索框样式 */
+input[name="keyword"] {
+    width: 600px;
+    height: 40px;
+    font-size: 16px;
+    padding: 5px 10px;
+    border-radius: 5px;
+    border: 1px solid #ccc; /* 边框样式 */
+}
+
+button {
+    height: 40px;
+    font-size: 16px;
+    padding: 5px 15px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    background-color: #007bff;
+    color: white;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #0056b3;
 }
