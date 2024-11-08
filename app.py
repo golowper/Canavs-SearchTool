@@ -1,87 +1,79 @@
-from flask import Flask, render_template, request, jsonify
 import os
-import re
-
+import csv
+from flask import Flask, render_template, request, jsonify, send_from_directory
+from bs4 import BeautifulSoup
+import pandas as pd
 app = Flask(__name__)
 
-folder_path = 'web-cache'
-
-# 获取 web-cache 文件夹中的 HTML 文件列表及其内容
-def get_html_files(folder_path, keyword=None):
-    if not os.path.exists(folder_path):
-        print(f"Error: The directory '{folder_path}' does not exist.")  # 控制台报错
-        raise FileNotFoundError(f"The directory '{folder_path}' does not exist.")
-
-    results = []
-
-    # 遍历目录中的文件
-    for file_name in os.listdir(folder_path):
-        if file_name.endswith('.html'):
-            file_path = os.path.join(folder_path, file_name)
-            with open(file_path, 'r', encoding='utf-8') as file:
-                content = file.read()
-
-                # 如果有关键词则进行高亮处理
-                if keyword:
-                    # 对文件名和内容中的关键词进行高亮
-                    highlighted_title = re.sub(f"({re.escape(keyword)})", r'<span class="highlight">\1</span>',
-                                               file_name, flags=re.IGNORECASE)
-                    highlighted_content = re.sub(f"({re.escape(keyword)})", r'<span class="highlight">\1</span>',
-                                                 content, flags=re.IGNORECASE)
-                else:
-                    highlighted_title = file_name
-                    highlighted_content = content
-
-                # 将结果添加到列表
-                results.append({
-                    "title": highlighted_title,
-                    "content": highlighted_content
-                })
-
-    return results
+# 定义绝对路径
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))    # 当前目录
+WEB_CACHE_FOLDER = os.path.join(CURRENT_DIR, 'web-cache')   # web-cache 文件夹
+CSV_FILE = os.path.join(WEB_CACHE_FOLDER, 'web-cache.csv')  # CSV 文件
 
 
-# 主页路由，展示搜索框和搜索结果
-@app.route('/', methods=['GET', 'POST'])
+# 初始化一个列表，用于存储从 CSV 文件中读取的信息
+search_data = []
+
+# 读取 web-cache.csv 文件
+try:
+    df = pd.read_csv(CSV_FILE, sep='\t', encoding='utf-8')
+except FileNotFoundError:
+    print(f"CSV 文件 '{CSV_FILE}' 不存在。请检查路径是否正确。")
+    exit(1)
+
+# 遍历 DataFrame 的每一行
+for index, row in df.iterrows():
+    filename = row['filename'] + '.html'
+    url = row['url']
+
+    file_path = os.path.join(WEB_CACHE_FOLDER, filename)    # 定义 HTML 文件的绝对路径
+    # 检查文件是否存在
+    if os.path.exists(file_path):
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+            # 使用 BeautifulSoup 解析 HTML 内容
+            soup = BeautifulSoup(content, 'html.parser')
+            # 提取标题或使用文件名
+            title = soup.title.string.strip() if soup.title and soup.title.string else filename
+            # 将信息添加到 search_data 列表中
+            search_data.append({
+                'title': title,
+                'filename': filename,
+                'url': url,
+                'content': content  # 保存内容以便后续高亮显示
+            })
+    else:
+        print(f"文件 {filename} 不存在，已跳过。")
+
+
+@app.route('/')
 def index():
-    keyword = request.form.get('keyword', '').strip()
-    results = []
-    try:
-        results = get_html_files('web-cache', keyword) if keyword else []
-    except FileNotFoundError as e:
-        print(e)  # 控制台打印错误信息
+    return render_template('index.html')
 
-    return render_template('index.html', results=results, keyword=keyword)
+@app.route('/search')
+def search():
+    query = request.args.get('q', '')
+    suggestions = []
+    for item in search_data:
+        if query.lower() in item['title'].lower() or query.lower() in item['content'].lower():
+            # 返回标题和匹配的内容片段
+            # 这里可以截取包含搜索词的部分内容
+            start_index = item['content'].lower().find(query.lower())
+            snippet = ''
+            if start_index != -1:
+                snippet = item['content'][max(0, start_index - 50):start_index + 50]
+            suggestions.append({
+                'title': item['title'],
+                'filename': item['filename'],
+                'url': item['url'],
+                'snippet': snippet
+            })
+    return jsonify(suggestions)
 
-
-# API 路由：获取 web-cache 文件夹中的 HTML 文件列表
-@app.route('/file-list', methods=['GET'])
-def get_file_list():
-    folder_path = 'web-cache'  # 确保 web-cache 文件夹在项目根目录下
-
-    # 检查文件夹是否存在
-    if not os.path.exists(folder_path):
-        error_message = f"Error: The directory '{folder_path}' does not exist."
-        print(error_message)  # 控制台报错
-        return jsonify({"error": error_message}), 500
-
-    try:
-        # 获取 HTML 文件列表
-        html_files = get_html_files(folder_path)
-        return jsonify(html_files)  # 返回 JSON 格式的文件列表
-
-    except PermissionError as e:
-        # 捕获权限错误并输出到控制台
-        error_message = f"Permission Error: {e}"
-        print(error_message)
-        return jsonify({"error": error_message}), 500
-
-    except Exception as e:
-        # 捕获其他异常并输出到控制台
-        error_message = f"Unexpected error: {e}"
-        print(error_message)
-        return jsonify({"error": error_message}), 500
-
+# 提供静态文件服务
+@app.route('/view/<path:filename>')
+def display_html(filename):
+    return send_from_directory(WEB_CACHE_FOLDER, filename)
 
 if __name__ == '__main__':
     app.run(debug=True)
