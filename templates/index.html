@@ -1,29 +1,95 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Canvas Keyword Search</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>搜索页面</title>
+    <style>
+        #search-box {
+            width: 300px;
+            padding: 10px;
+        }
+        #suggestions {
+            border: 1px solid #ccc;
+            width: 300px;
+            max-height: 200px;
+            overflow-y: auto;
+            position: absolute;
+            background-color: white;
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+            z-index: 1000;
+        }
+        #suggestions li {
+            padding: 10px;
+            cursor: pointer;
+        }
+        #suggestions li:hover {
+            background-color: #f0f0f0;
+        }
+        #content {
+            margin-top: 20px;
+        }
+        .highlight {
+            background-color: yellow;
+        }
+    </style>
 </head>
 <body>
-    <h1>Canvas Keyword Search</h1>
-    <form method="POST" id="searchForm">
-        <input type="text" name="keyword" placeholder="Enter keyword to search" value="{{ keyword }}">
-        <button type="submit">Search</button>
-    </form>
+    <h1>搜索页面</h1>
+    <input type="text" id="search-box" autocomplete="off" placeholder="输入关键字...">
+    <ul id="suggestions"></ul>
 
-    {% if results %}
-        <h2>Search Results</h2>
-        {% for result in results %}
-            <div class="result-container">
-                <h3>{{ result.title|safe }}</h3>
-                <div class="content">{{ result.content|safe }}</div>
-            </div>
-        {% endfor %}
-    {% elif keyword %}
-        <p>No results found for "{{ keyword }}".</p>
-    {% endif %}
+    <div id="content"></div>
 
+    <script>
+        const searchBox = document.getElementById('search-box');
+        const suggestions = document.getElementById('suggestions');
+        const contentDiv = document.getElementById('content');
+
+        let currentQuery = '';
+
+        searchBox.addEventListener('input', function() {
+            const query = this.value;
+            currentQuery = query;
+
+            if (query.length > 0) {
+                fetch(`/search?q=${encodeURIComponent(query)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        suggestions.innerHTML = '';
+                        data.forEach(function(item) {
+                            const li = document.createElement('li');
+                            // 高亮显示匹配的搜索词
+                            const regex = new RegExp(`(${query})`, 'gi');
+                            const highlightedTitle = item.title.replace(regex, '<span class="highlight">$1</span>');
+                            li.innerHTML = highlightedTitle;
+                            li.addEventListener('click', function() {
+                                searchBox.value = item.title;
+                                suggestions.innerHTML = '';
+                                // 加载并显示选中的 HTML 内容
+                                fetch(item.url)
+                                    .then(response => response.text())
+                                    .then(html => {
+                                        // 在内容中高亮显示搜索词
+                                        const highlightedHtml = html.replace(regex, '<span class="highlight">$1</span>');
+                                        contentDiv.innerHTML = highlightedHtml;
+                                    });
+                            });
+                            suggestions.appendChild(li);
+                        });
+                    });
+            } else {
+                suggestions.innerHTML = '';
+                contentDiv.innerHTML = '';
+            }
+        });
+
+        // 点击页面其他地方时，隐藏建议列表
+        document.addEventListener('click', function(e) {
+            if (e.target !== searchBox) {
+                suggestions.innerHTML = '';
+            }
+        });
+    </script>
 </body>
 </html>
